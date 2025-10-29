@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Alertas de Velocidad Vehicular",
+  "description": "Una aplicación para cargar archivos XLSX de datos de vehículos, identificar excesos de velocidad y asociar la información del contrato correspondiente a través de una API para generar reportes en tiempo real.",
+  "requestFramePermissions": []
+}
