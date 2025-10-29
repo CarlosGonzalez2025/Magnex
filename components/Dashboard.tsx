@@ -3,6 +3,7 @@ import { VehicleAlert, StatItem } from '../types';
 import { StatCard } from './StatCard';
 import { BarChart } from './BarChart';
 import { Map } from './Map';
+import { AIAnalysis } from './AIAnalysis';
 
 interface DashboardProps {
     alerts: VehicleAlert[];
@@ -38,6 +39,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ alerts }) => {
                  <StatCard title="Alertas Medias (50-79 km/h)" value={mediumSpeedCount} color="text-yellow-400" />
                  <StatCard title="Vehículos Únicos" value={uniqueVehicles} color="text-teal-400" />
             </div>
+            
+            <AIAnalysis alerts={alerts} />
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-8">
                 <div className="lg:col-span-3 bg-gray-800 p-4 sm:p-6 rounded-lg border border-gray-700 min-h-[400px]">
