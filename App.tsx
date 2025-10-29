@@ -97,19 +97,31 @@ const App: React.FC = () => {
         if (dateRaw) {
             let dateObj: Date | null = null;
             
-            // Handles Excel's numeric date format
             if (typeof dateRaw === 'number') {
                 const parsedDate = XLSX.SSF.parse_date_code(dateRaw);
                 if (parsedDate) {
                     dateObj = new Date(parsedDate.y, parsedDate.m - 1, parsedDate.d, parsedDate.H, parsedDate.M, parsedDate.S);
                 }
-            } 
-            // Handles date as a string or a JS Date object
-            else if (typeof dateRaw === 'string' || dateRaw instanceof Date) {
-                dateObj = new Date(dateRaw);
+            } else if (typeof dateRaw === 'string') {
+                // Manually parse DD/MM/YYYY HH:mm:ss format to avoid ambiguity
+                const parts = dateRaw.match(/(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(\d{1,2})?:?(\d{1,2})?:?(\d{1,2})?/);
+                if (parts) {
+                    // parts[1]=Day, parts[2]=Month, parts[3]=Year, parts[4]=Hour, ...
+                    const day = parseInt(parts[1], 10);
+                    const month = parseInt(parts[2], 10) - 1; // Month is 0-indexed in JS
+                    const year = parseInt(parts[3], 10);
+                    const hour = parts[4] ? parseInt(parts[4], 10) : 0;
+                    const minute = parts[5] ? parseInt(parts[5], 10) : 0;
+                    const second = parts[6] ? parseInt(parts[6], 10) : 0;
+                    dateObj = new Date(year, month, day, hour, minute, second);
+                } else {
+                    // Fallback for other string formats (less reliable)
+                    dateObj = new Date(dateRaw);
+                }
+            } else if (dateRaw instanceof Date) {
+                 dateObj = dateRaw;
             }
 
-            // Format if we have a valid date
             if (dateObj && !isNaN(dateObj.getTime())) {
                 fechaHora = dateObj.toLocaleString('es-CO', {
                     day: '2-digit',

@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { VehicleAlert } from '../types';
 
 interface AIAnalysisProps {
@@ -52,7 +51,7 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ alerts }) => {
         setAnalysisResult(null);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const apiKey = "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";
 
             const prompt = `
                 Eres un experto analista de seguridad vial y logística de flotas.
@@ -75,23 +74,41 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ alerts }) => {
                 Top 5 Operadores con más alertas:
                 ${dataSummary.topOperators.map(item => `- ${item.name}: ${item.count} alertas`).join('\n')}
 
-                Por favor, estructura tu respuesta en dos secciones claras:
-                1.  **Conclusiones Clave:** Puntos directos sobre los hallazgos más importantes.
-                2.  **Recomendaciones Accionables:** Pasos específicos que el gerente puede tomar para mejorar la seguridad y reducir las infracciones.
-
+                Por favor, estructura tu respuesta en dos secciones claras con los títulos exactos "**Conclusiones Clave**" y "**Recomendaciones Accionables**".
                 Utiliza viñetas para que la lectura sea fácil y rápida.
             `;
             
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                    'HTTP-Referer': 'https://velocidad.app',
+                    'X-Title': 'Sistema de Alertas de Velocidad',
+                },
+                body: JSON.stringify({
+                    model: 'qwen/qwen3-coder:free',
+                    messages: [{ role: 'user', content: prompt }],
+                }),
             });
 
-            setAnalysisResult(response.text);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || `Error en la API: ${response.statusText}`);
+            }
+
+            const responseData = await response.json();
+            const generatedText = responseData.choices[0]?.message?.content;
+            
+            if (!generatedText) {
+                throw new Error("La respuesta de la IA estaba vacía o en un formato incorrecto.");
+            }
+
+            setAnalysisResult(generatedText);
 
         } catch (err) {
             console.error("Error generating AI analysis:", err);
-            setError("Ocurrió un error al contactar el servicio de IA. Por favor, inténtelo de nuevo más tarde.");
+            setError(err instanceof Error ? err.message : "Ocurrió un error al contactar el servicio de IA. Por favor, inténtelo de nuevo más tarde.");
         } finally {
             setIsLoading(false);
         }
