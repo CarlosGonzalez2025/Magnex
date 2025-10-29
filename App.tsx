@@ -92,10 +92,37 @@ const App: React.FC = () => {
         if (speed === 0) return null;
 
         const dateRaw = row['FECHA_Hora'] || row['Fecha_Hora'] || row['FECHA HORA'];
-        let fechaHora = 'N/A';
+        let fechaHora = 'Invalid Date';
+
         if (dateRaw) {
-            const date = XLSX.SSF.parse_date_code(dateRaw);
-            fechaHora = new Date(date.y, date.m - 1, date.d, date.H, date.M, date.S).toLocaleString('es-CO');
+            let dateObj: Date | null = null;
+            
+            // Handles Excel's numeric date format
+            if (typeof dateRaw === 'number') {
+                const parsedDate = XLSX.SSF.parse_date_code(dateRaw);
+                if (parsedDate) {
+                    dateObj = new Date(parsedDate.y, parsedDate.m - 1, parsedDate.d, parsedDate.H, parsedDate.M, parsedDate.S);
+                }
+            } 
+            // Handles date as a string or a JS Date object
+            else if (typeof dateRaw === 'string' || dateRaw instanceof Date) {
+                dateObj = new Date(dateRaw);
+            }
+
+            // Format if we have a valid date
+            if (dateObj && !isNaN(dateObj.getTime())) {
+                fechaHora = dateObj.toLocaleString('es-CO', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).replace(',', '');
+            }
+        } else {
+            fechaHora = 'N/A';
         }
 
         return {
@@ -191,6 +218,54 @@ const App: React.FC = () => {
     );
   }, [combinedAlerts, filters]);
 
+  const handleExportCSV = useCallback(() => {
+    if (filteredAlerts.length === 0) {
+        alert("No hay datos filtrados para exportar.");
+        return;
+    }
+
+    const headers = [
+        "Placa",
+        "Velocidad (km/h)",
+        "Fecha y Hora",
+        "Operador",
+        "Localidad",
+        "Nombre del Contrato"
+    ];
+    
+    // Helper to safely format CSV fields
+    const formatCSVField = (field: any): string => {
+        const str = String(field);
+        // If the string contains a comma, double quote, or newline, wrap it in double quotes.
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            // Also, any double quote inside the string must be escaped by another double quote.
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    const rows = filteredAlerts.map(alert => [
+        formatCSVField(alert.placa),
+        alert.velocidad,
+        formatCSVField(alert.fechaHora),
+        formatCSVField(alert.operador),
+        formatCSVField(alert.localidad),
+        formatCSVField(alert.contrato)
+    ].join(','));
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    const today = new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `reporte_alertas_velocidad_${today}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredAlerts]);
+
   const highSpeedAlerts = useMemo(() => filteredAlerts.filter(a => a.velocidad >= 80), [filteredAlerts]);
   const mediumSpeedAlerts = useMemo(() => filteredAlerts.filter(a => a.velocidad >= 50 && a.velocidad < 80), [filteredAlerts]);
   const [activeTab, setActiveTab] = useState('report');
@@ -251,6 +326,7 @@ const App: React.FC = () => {
                         onFilterChange={handleFilterChange}
                         onClearFilters={handleClearFilters}
                         hasAlerts={combinedAlerts.length > 0}
+                        onExport={handleExportCSV}
                     />
                     <div className="space-y-8 mt-8">
                         <VehicleTable
